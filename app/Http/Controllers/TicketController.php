@@ -18,8 +18,9 @@ class TicketController extends Controller
     // Show create form
     public function create()
     {
-        $categories = Category::all();
-        return view('tickets.create', compact('categories'));
+        // $categories = Category::all();
+        // return view('tickets.create', compact('categories'));
+        return view('tickets.create');
     }
 
     // Store new ticket
