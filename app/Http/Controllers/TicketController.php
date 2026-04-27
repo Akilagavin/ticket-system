@@ -6,7 +6,7 @@ use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class TicketController extends Controller
+class TicketController 
 {
     /**
      * Display a listing of tickets (Admin view).
