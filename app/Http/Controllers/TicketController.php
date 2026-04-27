@@ -13,7 +13,6 @@ class TicketController extends Controller
      */
     public function index()
     {
-        // Fetch tickets, newest first, with pagination
         $tickets = Ticket::latest()->paginate(10);
         return view('tickets.index', compact('tickets'));
     }
@@ -31,31 +30,37 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
-        // 1. Validation: Ensure the customer provides the necessary info
-        $validated = $request->validate([
+        // 1. Validation
+        $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
             'phone'         => 'nullable|string|max:20',
             'description'   => 'required|string',
-            'category_id'   => 'nullable|exists:categories,id', // Added validation for category
         ]);
 
-        // 2. Business Logic: Generate a unique Reference ID (e.g., TKT-A1B2C3)
-        $validated['ref'] = 'TKT-' . strtoupper(Str::random(6));
-        $validated['status'] = 'open';
+        // 2. Manual Assignment (as per your requirement)
+        $ticket = new Ticket();
+        $ticket->customer_name = $request->input('customer_name');
+        $ticket->email = $request->input('email');
+        $ticket->phone = $request->input('phone');
+        $ticket->description = $request->input('description');
+        
+        // Use a clean reference string
+        $ticket->ref = 'TKT-' . strtoupper(Str::random(6));
+        $ticket->status = 'open';
 
-        // 3. Save to Database
-        $validated['category_id'] = $request->category_id ?? 1;
-        $ticket = Ticket::create($validated);
+        // 3. Save with Success/Error Flash Messages
+        if ($ticket->save()) {
+            return redirect()->route('tickets.show', $ticket->ref)
+                ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
+        }
 
-        // 4. Redirect to the 'show' page with a success message
-        return redirect()->route('tickets.show', $ticket->ref)
-            ->with('success', 'Your ticket has been created! Ref: ' . $ticket->ref);
+        return redirect()->back()
+            ->with('error', 'Oops! Could not create your ticket. Please try later.');
     }
 
     /**
      * Display a specific ticket.
-     * Scoped by 'ref' because of your web.php settings.
      */
     public function show(Ticket $ticket)
     {
@@ -71,7 +76,7 @@ class TicketController extends Controller
     }
 
     /**
-     * Update the ticket (e.g., change status or add agent notes).
+     * Update the ticket status.
      */
     public function update(Request $request, Ticket $ticket)
     {
@@ -91,8 +96,6 @@ class TicketController extends Controller
     public function search(Request $request)
     {
         $ref = $request->query('ref');
-        
-        // Try to find the ticket; throw a 404 if it doesn't exist
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
         return redirect()->route('tickets.show', $ticket->ref);
