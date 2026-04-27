@@ -10,9 +10,22 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
+    ->withMiddleware(function (Middleware $middleware) {
+        /**
+         * 1. Registering Custom Middleware Alias
+         * This allows you to use 'ticket.status' in your routes/web.php
+         * instead of the full class path.
+         */
+        $middleware->alias([
+            'ticket.status' => \App\Http\Middleware\CheckTicketStatus::class,
+        ]);
+
+        /**
+         * 2. Global Web Middleware (Optional)
+         * If you wanted to apply something to EVERY web route, you would use:
+         * $middleware->web(append: [ ... ]);
+         */
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+    ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
