@@ -2,107 +2,99 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Ticket;
-use App\Models\Category;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class TicketController extends Controller
 {
-        // Show all tickets
+    /**
+     * Display a listing of tickets (Admin view).
+     */
     public function index()
     {
-        $tickets = Ticket::latest()->get();
+        // Fetch tickets, newest first, with pagination
+        $tickets = Ticket::latest()->paginate(10);
         return view('tickets.index', compact('tickets'));
     }
 
-    // Show create form
+    /**
+     * Show the form for creating a new ticket (Customer view).
+     */
     public function create()
     {
-        // $categories = Category::all();
-        // return view('tickets.create', compact('categories'));
         return view('tickets.create');
     }
 
-    // Store new ticket
+    /**
+     * Store a newly created ticket in the database.
+     */
     public function store(Request $request)
     {
-        $request->validate([
+        // 1. Validation: Ensure the customer provides the necessary info
+        $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'description' => 'required',
-            'category_id' => 'required|exists:categories,id',
+            'email'         => 'required|email|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'description'   => 'required|string',
+            'category_id'   => 'nullable|exists:categories,id', // Added validation for category
         ]);
 
-        $ticket = new Ticket($request->all());
-        $ticket->ref = sha1(time());
-        $ticket->status = 0;
-        $ticket->save();
+        // 2. Business Logic: Generate a unique Reference ID (e.g., TKT-A1B2C3)
+        $validated['ref'] = 'TKT-' . strtoupper(Str::random(6));
+        $validated['status'] = 'open';
 
-        return redirect()
-            ->route('tickets.show', $ticket->ref)
-            ->with('success', 'Ticket created successfully!');
+        // 3. Save to Database
+        $validated['category_id'] = $request->category_id ?? 1;
+        $ticket = Ticket::create($validated);
+
+        // 4. Redirect to the 'show' page with a success message
+        return redirect()->route('tickets.show', $ticket->ref)
+            ->with('success', 'Your ticket has been created! Ref: ' . $ticket->ref);
     }
 
-    // Show single ticket
-    public function show($ref)
+    /**
+     * Display a specific ticket.
+     * Scoped by 'ref' because of your web.php settings.
+     */
+    public function show(Ticket $ticket)
     {
-        $ticket = Ticket::where('ref', $ref)->firstOrFail();
         return view('tickets.show', compact('ticket'));
     }
 
-    // Show edit form
-    public function edit($ref)
+    /**
+     * Show the form for editing (Admin view).
+     */
+    public function edit(Ticket $ticket)
     {
-        $ticket = Ticket::where('ref', $ref)->firstOrFail();
-        $categories = Category::all();
-
-        return view('tickets.edit', compact('ticket', 'categories'));
+        return view('tickets.edit', compact('ticket'));
     }
 
-    // Update ticket
-    public function update(Request $request, $ref)
+    /**
+     * Update the ticket (e.g., change status or add agent notes).
+     */
+    public function update(Request $request, Ticket $ticket)
     {
-        $ticket = Ticket::where('ref', $ref)->firstOrFail();
-
-        $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'description' => 'required',
-            'category_id' => 'required|exists:categories,id',
+        $validated = $request->validate([
+            'status' => 'required|string|in:open,closed,pending',
         ]);
 
-        $ticket->update($request->all());
+        $ticket->update($validated);
 
-        return redirect()
-            ->route('tickets.show', $ticket->ref)
-            ->with('success', 'Ticket updated successfully!');
+        return redirect()->route('tickets.show', $ticket->ref)
+            ->with('success', 'Ticket updated successfully.');
     }
 
-    // Delete ticket
-    public function destroy($ref)
-    {
-        $ticket = Ticket::where('ref', $ref)->firstOrFail();
-        $ticket->delete();
-
-        return redirect()
-            ->route('tickets.index')
-            ->with('success', 'Ticket deleted successfully!');
-    }
-
-    // Search ticket by reference
+    /**
+     * Search for a ticket by its Reference ID.
+     */
     public function search(Request $request)
     {
-        $request->validate([
-            'reference' => 'required'
-        ]);
+        $ref = $request->query('ref');
+        
+        // Try to find the ticket; throw a 404 if it doesn't exist
+        $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
-        $ticket = Ticket::where('ref', $request->reference)->first();
-
-        if ($ticket) {
-            return redirect()->route('tickets.show', $ticket->ref);
-        }
-
-        return back()->with('error', 'Ticket not found');
+        return redirect()->route('tickets.show', $ticket->ref);
     }
-    
 }
