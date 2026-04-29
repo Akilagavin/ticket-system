@@ -42,6 +42,9 @@ class TicketCreated extends Mailable
     {
         return new Content(
             view: 'mails.ticket-created',
+            with: [
+                'ticket' => $this->ticket,
+            ],
         );
     }
 
