@@ -19,6 +19,15 @@ class Ticket extends Model
         'status',
     ];
 
+    /**
+     * Get the route key for the model.
+     * This allows Laravel to find tickets by their 'ref' hash in the URL.
+     */
+    public function getRouteKeyName()
+    {
+        return 'ref';
+    }
+
     // Relationship: A ticket belongs to a category
     public function category()
     {
