@@ -10,6 +10,7 @@
             <div class="col-lg-8">
 
                 {{-- Exercise 2: Global Error Summary --}}
+                {{-- This block loops through all validation errors and displays them in a single list --}}
                 @if ($errors->any())
                     <div class="alert alert-danger text-left">
                         <strong>Please fix the following errors:</strong>
@@ -45,7 +46,7 @@
                                 </div>
                             </div>
 
-                            {{-- Email with Inline Validation --}}
+                            {{-- Exercise 1: Email with Inline Validation --}}
                             <div class="form-group row">
                                 <div class="col-md-4 text-md-right">
                                     <label for="email" class="col-form-label">Email Address</label>
@@ -63,10 +64,10 @@
                                 </div>
                             </div>
 
-                            {{-- Phone --}}
+                            {{-- Exercise 1: Phone (Optional but with Error Handling) --}}
                             <div class="form-group row">
                                 <div class="col-md-4 text-md-right">
-                                    <label for="phone" class="col-form-label">Phone (Optional)</label>
+                                    <label for="phone" class="col-form-label">Phone Number</label>
                                 </div>
                                 <div class="col-md-8">
                                     <input type="text" name="phone" 
@@ -81,7 +82,7 @@
                                 </div>
                             </div>
 
-                            {{-- Description with Inline Validation --}}
+                            {{-- Exercise 1: Description with Inline Validation --}}
                             <div class="form-group row">
                                 <div class="col-md-4 text-md-right">
                                     <label for="description" class="col-form-label">Issue Description</label>
