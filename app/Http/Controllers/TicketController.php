@@ -10,17 +10,18 @@ class TicketController extends Controller
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Updated for Part 2 to load the index view with tickets.
+     * Supports dynamic pagination via ?per_page= query parameter.
      */
     public function index(Request $request)
     {
-        // Using latest() ensure agents see the most recent issues first.
-        // paginate(10) ensures the page remains fast even with thousands of tickets.
-        $tickets = Ticket::latest()->paginate(10); 
+        // Fetches 'per_page' from URL, defaults to 10 if not provided.
+        $perPage = $request->query('per_page', 10);
 
-        return view('tickets.index', [
-            'tickets' => $tickets,
-        ]);
+        // Using latest() ensures agents see the most recent issues first.
+        // paginate($perPage) handles the SQL Limit/Offset automatically.
+        $tickets = Ticket::latest()->paginate($perPage); 
+
+        return view('tickets.index', compact('tickets'));
     }
 
     /**
@@ -51,14 +52,14 @@ class TicketController extends Controller
         $ticket->phone = $request->input('phone');
         $ticket->description = $request->input('description');
         
-        // Internal Logic: SHA1 Hash for reference
-        $ticket->ref = sha1(time());
+        // Internal Logic: SHA1 Hash for a secure, non-sequential reference
+        $ticket->ref = sha1(time() . Str::random(10));
         $ticket->status = 0; // Default to 'Open'
 
-        // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
+        // 3. Save and Redirect
         if ($ticket->save()) {
             return redirect(route('tickets.show', $ticket->ref))
-                ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
+                ->with('success', 'Your ticket is created successfully. Reference: ' . $ticket->ref);
         }
 
         return redirect()->back()
@@ -70,12 +71,10 @@ class TicketController extends Controller
      */
     public function show($ref)
     {
-        // Use where('ref') because we are using SHA1 hashes in the URL
+        // We query by 'ref' because of the SHA1 logic implemented in the migration.
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
-        return view('tickets.show', [
-            'ticket' => $ticket,
-        ]);
+        return view('tickets.show', compact('ticket'));
     }
 
     /**
@@ -106,8 +105,10 @@ class TicketController extends Controller
      */
     public function search(Request $request)
     {
-        $ref = $request->query('reference'); // Matches the 'name' attribute in your Welcome form
+        $ref = $request->query('reference'); 
 
+        // findOrFail works here if the route is scoped, 
+        // but explicit where() is safer for custom 'ref' strings.
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
         return redirect()->route('tickets.show', $ticket->ref);
