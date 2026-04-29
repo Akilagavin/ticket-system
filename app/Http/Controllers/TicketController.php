@@ -9,13 +9,18 @@ use Illuminate\Support\Str;
 class TicketController extends Controller
 {
     /**
-     * Display a listing of tickets (Admin view).
+     * Display a listing of tickets (Support Agent View).
+     * Updated for Part 2 to load the index view with tickets.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Fetch tickets, newest first, with pagination
-        $tickets = Ticket::latest()->paginate(10);
-        return view('tickets.index', compact('tickets'));
+        // Using latest() ensure agents see the most recent issues first.
+        // paginate(10) ensures the page remains fast even with thousands of tickets.
+        $tickets = Ticket::latest()->paginate(10); 
+
+        return view('tickets.index', [
+            'tickets' => $tickets,
+        ]);
     }
 
     /**
@@ -28,11 +33,10 @@ class TicketController extends Controller
 
     /**
      * Store a newly created ticket in the database.
-     * Uses Dependency Injection to access the $request object.
      */
     public function store(Request $request)
     {
-        // 1. Validation: Ensures data integrity before processing
+        // 1. Validation
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
@@ -40,42 +44,42 @@ class TicketController extends Controller
             'description'   => 'required|string',
         ]);
 
-        // 2. Manual Assignment: Creating the Ticket object
+        // 2. Manual Assignment
         $ticket = new Ticket();
         $ticket->customer_name = $request->input('customer_name');
         $ticket->email = $request->input('email');
         $ticket->phone = $request->input('phone');
         $ticket->description = $request->input('description');
         
-        // Internal Logic: Setting non-form attributes
-        // Generating a unique hash reference and setting initial status to 0 (Open)
+        // Internal Logic: SHA1 Hash for reference
         $ticket->ref = sha1(time());
-        $ticket->status = 0; 
+        $ticket->status = 0; // Default to 'Open'
 
-        // 3. Save Logic with Flashed Session Feedback
+        // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
         if ($ticket->save()) {
-            // Redirect to the 'show' view using the newly created ref
             return redirect(route('tickets.show', $ticket->ref))
                 ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
         }
 
-        // Fallback: If the database save fails, return back with an error alert
         return redirect()->back()
             ->with('error', 'Oops! Could not create your ticket. Please try again later.');
     }
 
     /**
-     * Display a specific ticket.
+     * Display a specific ticket using the SHA1 reference.
      */
-    public function show(Ticket $ticket)
+    public function show($ref)
     {
+        // Use where('ref') because we are using SHA1 hashes in the URL
+        $ticket = Ticket::where('ref', $ref)->firstOrFail();
+
         return view('tickets.show', [
-        'ticket' => $ticket,
+            'ticket' => $ticket,
         ]);
     }
 
     /**
-     * Show the form for editing (Admin view).
+     * Show the form for editing (Admin/Agent view).
      */
     public function edit(Ticket $ticket)
     {
@@ -83,8 +87,7 @@ class TicketController extends Controller
     }
 
     /**
-     * Update the ticket status.
-     * Validates against integers 0, 1, and 2.
+     * Update the ticket status (Handled by Agent).
      */
     public function update(Request $request, Ticket $ticket)
     {
@@ -99,13 +102,12 @@ class TicketController extends Controller
     }
 
     /**
-     * Search for a ticket by its Reference ID.
+     * Search for a ticket by its Reference ID (Used on the Welcome page).
      */
     public function search(Request $request)
     {
-        $ref = $request->query('ref');
+        $ref = $request->query('reference'); // Matches the 'name' attribute in your Welcome form
 
-        // Find the ticket by ref; fails with 404 if not found
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
         return redirect()->route('tickets.show', $ticket->ref);
