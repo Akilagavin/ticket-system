@@ -94,7 +94,7 @@ class TicketController
     /**
      * Display a specific ticket using the SHA1 reference.
      */
-    public function show($ref)
+    public function show(string $ref)
     {
         // Use firstOrFail so it automatically throws a 404 if the SHA1 hash is invalid
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
