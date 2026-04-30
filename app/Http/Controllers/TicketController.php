@@ -10,16 +10,38 @@ class TicketController extends Controller
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Supports dynamic pagination via ?per_page= query parameter.
+     * Supports dynamic pagination, searching, and sorting.
      */
     public function index(Request $request)
     {
-        // Fetches 'per_page' from URL, defaults to 10 if not provided.
-        $perPage = $request->query('per_page', 10);
+        $ticketsQuery = Ticket::query();
+        
+        // 1. Capture Search and Sort inputs
+        $q = $request->query('q');
+        $sortColumn = $request->query('sort', 'created_at');
+        $sortDir = $request->query('sort_dir') == 'asc' ? 'asc' : 'desc';
+        
+        $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
 
-        // Using latest() ensures agents see the most recent issues first.
-        // paginate($perPage) handles the SQL Limit/Offset automatically.
-        $tickets = Ticket::latest()->paginate($perPage); 
+        // 2. Apply Search Filter
+        if ($q) {
+            $ticketsQuery->where(function($query) use ($q) {
+                $query->where('ref', 'LIKE', "%$q%")
+                      ->orWhere('customer_name', 'LIKE', "%$q%")
+                      ->orWhere('phone', 'LIKE', "%$q%")
+                      ->orWhere('description', 'LIKE', "%$q%");
+            });
+        } // Fixed: Added missing closing brace
+
+        // 3. Apply Sorting
+        if (in_array($sortColumn, $sortableColumns)) {
+            $ticketsQuery->orderBy($sortColumn, $sortDir);
+        }
+
+        // 4. Finalize with Pagination
+        // .appends() ensures search/sort parameters stay in the URL when clicking page links
+        $perPage = $request->query('per_page', 10);
+        $tickets = $ticketsQuery->paginate($perPage)->appends($request->query());
 
         return view('tickets.index', compact('tickets'));
     }
@@ -71,9 +93,7 @@ class TicketController extends Controller
      */
     public function show($ref)
     {
-        // We query by 'ref' because of the SHA1 logic implemented in the migration.
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
-
         return view('tickets.show', compact('ticket'));
     }
 
@@ -106,11 +126,7 @@ class TicketController extends Controller
     public function search(Request $request)
     {
         $ref = $request->query('reference'); 
-
-        // findOrFail works here if the route is scoped, 
-        // but explicit where() is safer for custom 'ref' strings.
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
-
         return redirect()->route('tickets.show', $ticket->ref);
     }
 }
