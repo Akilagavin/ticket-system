@@ -13,11 +13,13 @@ class TicketController
 {
     /**
      * Display a listing of tickets (Support Agent View).
+     * Updated for Part 2 to load the index view with tickets.
      */
     public function index(Request $request)
     {
-        $perPage = $request->query('per_page', 10);
-        $tickets = Ticket::latest()->paginate($perPage);
+        // Using latest() ensure agents see the most recent issues first.
+        // paginate(10) ensures the page remains fast even with thousands of tickets.
+        $tickets = Ticket::latest()->paginate(10); 
 
         return view('tickets.index', compact('tickets'));
     }
@@ -41,22 +43,23 @@ class TicketController
             'email'         => 'required|email|max:255',
             'phone'         => 'nullable|string|max:20',
             'description'   => 'required|string',
-            'category_id'   => 'nullable|exists:categories,id',
         ]);
 
-        // Logic: Generate SHA1 hash reference and set status to 0 (Open)
-        $validated['ref'] = sha1(time() . Str::random(10));
-        $validated['status'] = 0; 
-        $validated['category_id'] = $request->category_id ?? 1;
+        // 2. Manual Assignment
+        $ticket = new Ticket();
+        $ticket->customer_name = $request->input('customer_name');
+        $ticket->email = $request->input('email');
+        $ticket->phone = $request->input('phone');
+        $ticket->description = $request->input('description');
+        
+        // Internal Logic: SHA1 Hash for reference
+        $ticket->ref = sha1(time());
+        $ticket->status = 0; // Default to 'Open'
 
-        $ticket = Ticket::create($validated);
-
-        if ($ticket) {
-            // Send the email to the customer (The core logic from your branch)
-            Mail::to($ticket->email)->send(new TicketCreated($ticket));
-
-            return redirect()->route('tickets.show', $ticket->ref)
-                ->with('success', 'Ticket created! Check your email for the reference number.');
+        // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
+        if ($ticket->save()) {
+            return redirect(route('tickets.show', $ticket->ref))
+                ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
         }
 
         return redirect()->back()->with('error', 'Oops! Could not create your ticket.');
@@ -68,22 +71,10 @@ class TicketController
     public function show($ref)
     {
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
-        return view('tickets.show', compact('ticket'));
-    }
 
-    /**
-     * Search for a ticket by its Reference ID (Used on the Welcome page).
-     */
-    public function search(Request $request)
-    {
-        $ref = $request->query('reference');
-        $ticket = Ticket::where('ref', $ref)->first();
-
-        if (!$ticket) {
-            return redirect()->back()->with('error', 'No ticket found with that reference number.');
-        }
-
-        return redirect()->route('tickets.show', $ticket->ref);
+        return view('tickets.show', [
+            'ticket' => $ticket,
+        ]);
     }
 
     /**
@@ -107,5 +98,17 @@ class TicketController
 
         return redirect()->route('tickets.show', $ticket->ref)
             ->with('success', 'Ticket status updated successfully.');
+    }
+
+    /**
+     * Search for a ticket by its Reference ID (Used on the Welcome page).
+     */
+    public function search(Request $request)
+    {
+        $ref = $request->query('reference'); // Matches the 'name' attribute in your Welcome form
+
+        $ticket = Ticket::where('ref', $ref)->firstOrFail();
+
+        return redirect()->route('tickets.show', $ticket->ref);
     }
 }
