@@ -7,6 +7,35 @@
         <p class="text-muted">Manage and respond to customer inquiries.</p>
     </div>
 
+    <!-- START: Search and Sort Form -->
+    <div class="my-4">
+        <form action="{{ route('tickets.index') }}" method="get">
+            <div class="row">
+                <div class="col-3">
+                    <select class="form-control" name="sort">
+                        <option value="customer_name" {{ request('sort') == 'customer_name' ? 'selected' : '' }}>Customer Name</option>
+                        <option value="created_at" {{ request('sort', 'created_at') == 'created_at' ? 'selected' : '' }}>Opened Time</option>
+                        <option value="updated_at" {{ request('sort') == 'updated_at' ? 'selected' : '' }}>Last Updated Time</option>
+                        <option value="status" {{ request('sort') == 'status' ? 'selected' : '' }}>Status</option>
+                    </select>
+                </div>
+                <div class="col-3">
+                    <select class="form-control" name="sort_dir">
+                        <option value="asc" {{ request('sort_dir') == 'asc' ? 'selected' : '' }}>Ascending</option>
+                        <option value="desc" {{ request('sort_dir', 'desc') == 'desc' ? 'selected' : '' }}>Descending</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="Reference, customer name or phone number">
+                </div>
+                <div class="col-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <!-- END: Search and Sort Form -->
+
     <div class="mt-4">
         @if($tickets->isNotEmpty())
         <div class="table-responsive shadow-sm">
@@ -25,8 +54,8 @@
                     @foreach($tickets as $ticket)
                     <tr>
                         <td>
-                            {{-- Updated to use 'ref' for your SHA1 logic --}}
-                            <a href="{{ route('tickets.show', $ticket->ref) }}" class="font-weight-bold">
+                            {{-- Uses 'ref' for secure SHA1 routing as seen in your Controller --}}
+                            <a href="{{ route('tickets.show', $ticket->ref) }}" class="font-weight-bold text-primary">
                                 {{ $ticket->customer_name }}
                             </a>
                         </td>
@@ -34,7 +63,6 @@
                         <td>{{ $ticket->phone ?? 'N/A' }}</td>
                         <td>{{ $ticket->created_at->format('d/M/Y H:i') }}</td>
                         <td>
-                            {{-- Visual Status Indicator --}}
                             @if($ticket->status == 0)
                                 <span class="badge badge-primary">Open</span>
                             @elseif($ticket->status == 1)
@@ -52,14 +80,14 @@
             </table>
         </div>
 
-        {{-- Pagination Links --}}
+        {{-- Pagination Links: .appends() in controller ensures these work with filters --}}
         <div class="d-flex justify-content-center mt-4">
             {{ $tickets->links() }}
         </div>
 
         @else
         <div class="alert alert-info text-center">
-            <i class="fas fa-info-circle"></i> No tickets found in the system yet.
+            <i class="fas fa-info-circle"></i> No tickets found matching your criteria.
         </div>
         @endif
     </div>
