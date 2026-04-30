@@ -14,43 +14,37 @@ class TicketController extends Controller
      */
     public function index(Request $request)
     {
-        $ticketsQuery = Ticket::query();
+        // 1. Initialize the query
+        $query = Ticket::query();
 
-    // 1. Capture and Sanitize Inputs
-    $q = $request->query('q');
-    $sortColumn = $request->query('sort', 'created_at');
-    // Force sortDir to be 'desc' unless 'asc' is explicitly requested
-    $sortDir = $request->query('sort_dir') === 'asc' ? 'asc' : 'desc';
+        // 2. Handle Search (Filter by Ref, Name, Phone, or Description)
+        if ($request->filled('q')) {
+            $searchTerm = $request->q;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('ref', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
 
-    $sortableColumns = [
-        'customer_name',
-        'created_at',
-        'updated_at',
-        'status',
-    ];
+        // 3. Handle Sorting with Sanitize Check
+        $sortableColumns = ['customer_name', 'created_at', 'status'];
+        $sortField = $request->query('sort', 'created_at');
+        $sortDirection = $request->query('sort_dir') === 'asc' ? 'asc' : 'desc';
 
-    // 2. Searching (Wrapped in a function to group OR statements)
-    if ($q) {
-        $ticketsQuery->where(function($query) use ($q) {
-            $query->where('ref', 'LIKE', "%$q%")
-                  ->orWhere('customer_name', 'LIKE', "%$q%")
-                  ->orWhere('phone', 'LIKE', "%$q%")
-                  ->orWhere('description', 'LIKE', "%$q%");
-        });
-    }
+        if (in_array($sortField, $sortableColumns)) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
 
-    // 3. Sorting (Graceful fallback if column is invalid)
-    if (in_array($sortColumn, $sortableColumns)) {
-        $ticketsQuery->orderBy($sortColumn, $sortDir);
-    } else {
-        $ticketsQuery->orderBy('created_at', 'desc');
-    }
+        // 4. Pagination
+        // withQueryString() ensures search/sort stays active when clicking page numbers
+        $perPage = $request->query('per_page', 10);
+        $tickets = $query->paginate($perPage)->withQueryString();
 
-    // 4. Pagination (Keeping the search/sort parameters in the links)
-    $perPage = $request->query('per_page', 10);
-    $tickets = $ticketsQuery->paginate($perPage)->appends($request->query());
-
-    return view('tickets.index', compact('tickets'));
+        return view('tickets.index', compact('tickets'));
        
     }
 
