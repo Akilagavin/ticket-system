@@ -8,13 +8,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// 2. Custom Search Route
-// Using GET for search is standard so users can bookmark their results page
+// 2. Custom Search Route (Must be ABOVE resource routes)
+// This allows customers to find their ticket using the SHA1 'ref' string
 Route::get('/tickets/search', [TicketController::class, 'search'])->name('tickets.search');
 
 // 3. Resource Routes for Tickets
-// We use 'scoped' so Laravel knows to look for the 'ref' column in the database
-// instead of the default 'id' when visiting /tickets/{ticket}
+// Using 'scoped' tells Laravel to use the 'ref' column for URL parameters
 Route::resource('tickets', TicketController::class)->scoped([
     'ticket' => 'ref',
 ]);
