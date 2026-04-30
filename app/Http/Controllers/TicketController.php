@@ -10,7 +10,7 @@ class TicketController extends Controller
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Supports dynamic pagination, searching, and sorting.
+     * Matches the UI in support-table-with-search-sort-form.png.
      */
     public function index(Request $request)
     {
@@ -21,6 +21,7 @@ class TicketController extends Controller
         $sortColumn = $request->query('sort', 'created_at');
         $sortDir = $request->query('sort_dir') == 'asc' ? 'asc' : 'desc';
         
+        // Security: Whitelist columns allowed for sorting
         $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
 
         // 2. Apply Search Filter
@@ -31,7 +32,7 @@ class TicketController extends Controller
                       ->orWhere('phone', 'LIKE', "%$q%")
                       ->orWhere('description', 'LIKE', "%$q%");
             });
-        } // Fixed: Added missing closing brace
+        }
 
         // 3. Apply Sorting
         if (in_array($sortColumn, $sortableColumns)) {
@@ -76,7 +77,7 @@ class TicketController extends Controller
         
         // Internal Logic: SHA1 Hash for a secure, non-sequential reference
         $ticket->ref = sha1(time() . Str::random(10));
-        $ticket->status = 0; // Default to 'Open'
+        $ticket->status = 0; // Default to 'Open' (0: Open, 1: Pending, 2: Resolved)
 
         // 3. Save and Redirect
         if ($ticket->save()) {
@@ -93,6 +94,7 @@ class TicketController extends Controller
      */
     public function show($ref)
     {
+        // Use firstOrFail so it automatically throws a 404 if the SHA1 hash is invalid
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
         return view('tickets.show', compact('ticket'));
     }
