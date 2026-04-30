@@ -10,7 +10,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class TicketCreated extends Mailable
+class TicketCreated extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -42,6 +42,9 @@ class TicketCreated extends Mailable
     {
         return new Content(
             view: 'mails.ticket-created',
+            with: [
+                'ticket' => $this->ticket,
+            ],
         );
     }
 

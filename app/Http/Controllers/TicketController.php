@@ -3,19 +3,51 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\Category; // Added back from your HEAD changes
+use App\Mail\TicketCreated;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class TicketController 
 {
     /**
-     * Display a listing of tickets (Admin view).
+     * Display a listing of tickets (Support Agent View).
+     * Supports dynamic pagination, searching, and sorting.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Fetch tickets, newest first, with pagination
-        $tickets = Ticket::latest()->paginate(10);
-        return view('tickets.index', compact('tickets'));
+        $ticketsQuery = Ticket::query();
+        
+        // 1. Capture Search and Sort inputs
+        $q = $request->query('q');
+        $sortColumn = $request->query('sort', 'created_at');
+        $sortDir = $request->query('sort_dir') == 'asc' ? 'asc' : 'desc';
+        
+        $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
+
+        // 2. Apply Search Filter
+        if ($q) {
+            $ticketsQuery->where(function($query) use ($q) {
+                $query->where('ref', 'LIKE', "%$q%")
+                      ->orWhere('customer_name', 'LIKE', "%$q%")
+                      ->orWhere('phone', 'LIKE', "%$q%")
+                      ->orWhere('description', 'LIKE', "%$q%");
+            });
+        } // Fixed: Added missing closing brace
+
+        // 3. Apply Sorting
+        if (in_array($sortColumn, $sortableColumns)) {
+            $ticketsQuery->orderBy($sortColumn, $sortDir);
+        }
+
+        // 4. Finalize with Pagination
+        // .appends() ensures search/sort parameters stay in the URL when clicking page links
+        $perPage = $request->query('per_page', 10);
+        $tickets = $ticketsQuery->paginate($perPage)->appends($request->query());
+
+    return view('tickets.index', compact('tickets'));
+       
     }
 
     /**
@@ -23,7 +55,8 @@ class TicketController
      */
     public function create()
     {
-        return view('tickets.create');
+        $categories = Category::all(); // Keeps the category feature from HEAD
+        return view('tickets.create', compact('categories'));
     }
 
     /**
@@ -31,39 +64,48 @@ class TicketController
      */
     public function store(Request $request)
     {
-        // 1. Validation: Ensure the customer provides the necessary info
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
             'phone'         => 'nullable|string|max:20',
             'description'   => 'required|string',
-            'category_id'   => 'nullable|exists:categories,id', // Added validation for category
         ]);
 
-        // 2. Business Logic: Generate a unique Reference ID (e.g., TKT-A1B2C3)
-        $validated['ref'] = 'TKT-' . strtoupper(Str::random(6));
-        $validated['status'] = 'open';
+        // 2. Manual Assignment
+        $ticket = new Ticket();
+        $ticket->customer_name = $request->input('customer_name');
+        $ticket->email = $request->input('email');
+        $ticket->phone = $request->input('phone');
+        $ticket->description = $request->input('description');
+        
+        // Internal Logic: SHA1 Hash for a secure, non-sequential reference
+        $ticket->ref = sha1(time() . Str::random(10));
+        $ticket->status = 0; // Default to 'Open'
 
-        // 3. Save to Database
-        $validated['category_id'] = $request->category_id ?? 1;
-        $ticket = Ticket::create($validated);
+        // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
+        if ($ticket->save()) {
+            return redirect(route('tickets.show', $ticket->ref))
+                ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
+        }
 
-        // 4. Redirect to the 'show' page with a success message
-        return redirect()->route('tickets.show', $ticket->ref)
-            ->with('success', 'Your ticket has been created! Ref: ' . $ticket->ref);
+        return redirect()->back()->with('error', 'Oops! Could not create your ticket.');
     }
 
     /**
-     * Display a specific ticket.
-     * Scoped by 'ref' because of your web.php settings.
+     * Display a specific ticket using the SHA1 reference.
      */
-    public function show(Ticket $ticket)
+    public function show($ref)
     {
-        return view('tickets.show', compact('ticket'));
+        // Use firstOrFail so it automatically throws a 404 if the SHA1 hash is invalid
+        $ticket = Ticket::where('ref', $ref)->firstOrFail();
+
+        return view('tickets.show', [
+            'ticket' => $ticket,
+        ]);
     }
 
     /**
-     * Show the form for editing (Admin view).
+     * Show the form for editing (Admin/Agent view).
      */
     public function edit(Ticket $ticket)
     {
@@ -71,28 +113,27 @@ class TicketController
     }
 
     /**
-     * Update the ticket (e.g., change status or add agent notes).
+     * Update the ticket status (Handled by Agent).
      */
     public function update(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
-            'status' => 'required|string|in:open,closed,pending',
+            'status' => 'required|integer|in:0,1,2',
         ]);
 
         $ticket->update($validated);
 
         return redirect()->route('tickets.show', $ticket->ref)
-            ->with('success', 'Ticket updated successfully.');
+            ->with('success', 'Ticket status updated successfully.');
     }
 
     /**
-     * Search for a ticket by its Reference ID.
+     * Search for a ticket by its Reference ID (Used on the Welcome page).
      */
     public function search(Request $request)
     {
-        $ref = $request->query('ref');
-        
-        // Try to find the ticket; throw a 404 if it doesn't exist
+        $ref = $request->query('reference'); // Matches the 'name' attribute in your Welcome form
+
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
         return redirect()->route('tickets.show', $ticket->ref);

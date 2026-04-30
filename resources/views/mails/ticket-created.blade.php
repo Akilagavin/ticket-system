@@ -1,43 +1,26 @@
-<p>
-    Hi {{ $ticket->customer_name }},
-</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ticket Created</title>
+</head>
+<body style="font-family: sans-serif; line-height: 1.6;">
+    <h2>Hi {{ $ticket->customer_name }},</h2>
+    <p>Thank you for contacting the support system. Your ticket has been successfully created.</p>
 
-<p>
-    Thank you for contacting the support system.
-    Your ticket is successfully created and details are shown below:
-</p>
-
-<br>
-
-<table class="table table-bordered table-striped">
-    <tbody>
+    <table style="width: 100%; border-collapse: collapse;">
         <tr>
-            <td><strong>Ticket Refererence:</strong></td>
-            <td>{{ $ticket->ref }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Reference:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ $ticket->ref }}</td>
         </tr>
         <tr>
-            <td><strong>Customer Name:</strong></td>
-            <td>{{ $ticket->customer_name }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Description:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ $ticket->description }}</td>
         </tr>
-        <tr>
-            <td><strong>Email:</strong></td>
-            <td>{{ $ticket->email }}</td>
-        </tr>
-        <tr>
-            <td><strong>Phone:</strong></td>
-            <td>{{ $ticket->phone }}</td>
-        </tr>
-        <tr>
-            <td><strong>Description:</strong></td>
-            <td>{{ $ticket->description }}</td>
-        </tr>
-    </tbody>
-</table>
+    </table>
 
-<br><br>
-
-<a href="{{ route('tickets.show', $ticket->id) }}">Click here to view your ticket</a>
-
-<br>
-
-<p>Thank you.</p>
+    <p><a href="{{ route('tickets.show', $ticket->ref) }}">Click here to view your ticket status.</a></p>
+    
+    <hr>
+    <p style="font-size: 0.8em;">This is an automated message from the Help Desk System.</p>
+</body>
+</html>
