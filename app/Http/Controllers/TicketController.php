@@ -13,15 +13,41 @@ class TicketController
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Updated for Part 2 to load the index view with tickets.
+     * Supports dynamic pagination, searching, and sorting.
      */
     public function index(Request $request)
     {
-        // Using latest() ensure agents see the most recent issues first.
-        // paginate(10) ensures the page remains fast even with thousands of tickets.
-        $tickets = Ticket::latest()->paginate(10); 
+        $ticketsQuery = Ticket::query();
+        
+        // 1. Capture Search and Sort inputs
+        $q = $request->query('q');
+        $sortColumn = $request->query('sort', 'created_at');
+        $sortDir = $request->query('sort_dir') == 'asc' ? 'asc' : 'desc';
+        
+        $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
 
-        return view('tickets.index', compact('tickets'));
+        // 2. Apply Search Filter
+        if ($q) {
+            $ticketsQuery->where(function($query) use ($q) {
+                $query->where('ref', 'LIKE', "%$q%")
+                      ->orWhere('customer_name', 'LIKE', "%$q%")
+                      ->orWhere('phone', 'LIKE', "%$q%")
+                      ->orWhere('description', 'LIKE', "%$q%");
+            });
+        } // Fixed: Added missing closing brace
+
+        // 3. Apply Sorting
+        if (in_array($sortColumn, $sortableColumns)) {
+            $ticketsQuery->orderBy($sortColumn, $sortDir);
+        }
+
+        // 4. Finalize with Pagination
+        // .appends() ensures search/sort parameters stay in the URL when clicking page links
+        $perPage = $request->query('per_page', 10);
+        $tickets = $ticketsQuery->paginate($perPage)->appends($request->query());
+
+    return view('tickets.index', compact('tickets'));
+       
     }
 
     /**
@@ -52,8 +78,8 @@ class TicketController
         $ticket->phone = $request->input('phone');
         $ticket->description = $request->input('description');
         
-        // Internal Logic: SHA1 Hash for reference
-        $ticket->ref = sha1(time());
+        // Internal Logic: SHA1 Hash for a secure, non-sequential reference
+        $ticket->ref = sha1(time() . Str::random(10));
         $ticket->status = 0; // Default to 'Open'
 
         // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
@@ -70,6 +96,7 @@ class TicketController
      */
     public function show($ref)
     {
+        // Use firstOrFail so it automatically throws a 404 if the SHA1 hash is invalid
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
 
         return view('tickets.show', [
