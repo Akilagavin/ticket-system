@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth; // Added for IDE clarity
 
-class CommentController  // Ensure it extends Controller
+class CommentController  extends Controller// Ensure it extends Controller
 {
     /**
      * Store a newly created resource in storage.

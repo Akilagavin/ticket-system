@@ -9,7 +9,8 @@
         <div class="row justify-content-center">
             <div class="col-lg-8 text-left">
                 
-                <div class="card shadow-sm border-0">
+                {{-- Ticket Information Card --}}
+                <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Ticket Information</h5>
                         <span class="badge badge-light p-2">Ref: {{ $ticket->ref }}</span>
@@ -58,8 +59,25 @@
                     </div>
                 </div>
 
-            </div>
-        </div>
-    </div>
-</div>
+                {{-- The Comment Box --}}
+                <div class="comments-container mt-4">
+                    <div class="comment-editor card shadow-sm p-4 border-0">
+                        <h5 class="mb-3">Add a Reply</h5>
+                        <form action="{{ route('comments.store') }}" method="post">
+                            @csrf
+                            <input type="hidden" name="ticket_id" value="{{ $ticket->id }}">
+                            <div class="form-group mb-3">
+                                <textarea name="content" rows="4" class="form-control" placeholder="Type your reply here..." required></textarea>
+                            </div>
+                            <div class="form-group text-right">
+                                <button type="submit" class="btn btn-success px-4">Post Reply</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div> {{-- Closes col-lg-8 --}}
+        </div> {{-- Closes row --}}
+    </div> {{-- Closes m-5 --}}
+</div> {{-- Closes text-center --}}
 @endsection

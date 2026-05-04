@@ -17,34 +17,30 @@ Route::get('/', function () {
     return view('welcome'); 
 });
 
-// Authentication Routes
+// Authentication logic
 Route::get('/login', [LoginController::class, 'login'])->name('login');
 Route::post('/login', [LoginController::class, 'authenticate'])->name('authenticate');
 
-// Ticket Public Access
+// Public Ticket Management (Search, Create, and View)
 Route::get('/tickets/search', [TicketController::class, 'search'])->name('tickets.search');
 Route::get('/tickets/create', [TicketController::class, 'create'])->name('tickets.create');
 Route::post('/tickets', [TicketController::class, 'store'])->name('tickets.store');
 Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
 
-/**
- * Comment Routes
- * Registered outside of auth middleware so customers can reply to their tickets.
- * This registers: comments.store, comments.update, and comments.destroy.
- */
+// Comment Management
+// Registered outside auth so guests (customers) can reply to their own tickets.
 Route::resource('comments', CommentController::class)->only(['store', 'update', 'destroy']);
 
-
-// 2. PROTECTED AGENT ROUTES (Gatekeeper applied)
+// 2. PROTECTED AGENT ROUTES (Requires Login)
 Route::middleware(['auth'])->group(function () {
     
-    // The Tickets Dashboard Table
+    // Agent Dashboard
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
     
     // Logout Logic
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
 
-    // Editing Logic (Middleware for Status check)
+    // Editing Logic (Middleware for Status check: prevents editing closed tickets)
     Route::middleware([CheckTicketStatus::class])->group(function () {
         Route::get('/tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
         Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
