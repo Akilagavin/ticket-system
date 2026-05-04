@@ -10,6 +10,7 @@
     <div class="mb-4">
         <form action="{{ route('tickets.index') }}" method="get">
             <div class="form-row">
+                <!-- Sort Column -->
                 <div class="col-md-3">
                     <select class="form-control form-control-lg text-muted" name="sort" style="font-size: 0.9rem;">
                         <option value="customer_name" {{ request('sort') == 'customer_name' ? 'selected' : '' }}>Customer Name</option>
@@ -17,15 +18,21 @@
                         <option value="status" {{ request('sort') == 'status' ? 'selected' : '' }}>Status</option>
                     </select>
                 </div>
+
+                <!-- Sort Direction -->
                 <div class="col-md-3">
                     <select class="form-control form-control-lg text-muted" name="sort_dir" style="font-size: 0.9rem;">
                         <option value="asc" {{ request('sort_dir') == 'asc' ? 'selected' : '' }}>Ascending</option>
                         <option value="desc" {{ request('sort_dir', 'desc') == 'desc' ? 'selected' : '' }}>Descending</option>
                     </select>
                 </div>
+
+                <!-- Search Query -->
                 <div class="col-md-4">
                     <input type="text" name="q" value="{{ request('q') }}" class="form-control form-control-lg text-muted" placeholder="Reference, customer name or phone number" style="font-size: 0.9rem;">
                 </div>
+
+                <!-- Search Button -->
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-block btn-lg font-weight-bold" style="font-size: 0.9rem;">Search</button>
                 </div>
@@ -33,6 +40,7 @@
         </form>
     </div>
 
+    <!-- Tickets Table -->
     <div class="table-responsive">
         <table class="table table-bordered bg-white" style="font-size: 0.85rem;">
             <thead class="bg-white">
@@ -50,33 +58,42 @@
                 @forelse($tickets as $ticket)
                 <tr class="text-center">
                     <td>
-                        <a href="{{ route('tickets.show', $ticket->ref) }}" class="text-primary text-decoration-none">
+                        <a href="{{ route('tickets.show', $ticket->ref) }}" class="text-primary text-decoration-none font-weight-bold">
                             {{ $ticket->customer_name }}
                         </a>
                     </td>
                     <td>{{ $ticket->email }}</td>
                     <td>{{ $ticket->phone ?? 'N/A' }}</td>
                     <td>{{ $ticket->created_at->format('d/M/Y H:i:s') }}</td>
-                    <td>{{-- Add logic for handled_by if available --}}</td>
                     <td>
-                        @if($ticket->status == 0) Open @elseif($ticket->status == 1) Pending @else Resolved @endif
+                        {{-- Future Logic: $ticket->agent->name --}}
+                        <span class="text-muted">Unassigned</span>
                     </td>
                     <td>
-                        {{-- Action buttons --}}
+                        @if($ticket->status == 0)
+                            <span class="badge badge-success">Open</span>
+                        @elseif($ticket->status == 1)
+                            <span class="badge badge-warning">Pending</span>
+                        @else
+                            <span class="badge badge-secondary">Resolved</span>
+                        @endif
+                    </td>
+                    <td>
+                        <a href="{{ route('tickets.edit', $ticket->id) }}" class="btn btn-sm btn-outline-info">Edit</a>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">No tickets found</td>
+                    <td colspan="7" class="text-center py-4 text-muted">No tickets found matching your criteria.</td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
-    <!-- Pagination -->
+    <!-- Pagination Links -->
     <div class="d-flex justify-content-center mt-4">
-    {{ $tickets->links() }}
-</div>
+        {!! $tickets->links() !!}
+    </div>
 </div>
 @endsection
