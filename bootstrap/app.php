@@ -11,20 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        /**
-         * 1. Registering Custom Middleware Alias
-         * This allows you to use 'ticket.status' in your routes/web.php
-         * instead of the full class path.
-         */
+        // 1. Registering Custom Middleware Alias
         $middleware->alias([
             'ticket.status' => \App\Http\Middleware\CheckTicketStatus::class,
         ]);
 
-        /**
-         * 2. Global Web Middleware (Optional)
-         * If you wanted to apply something to EVERY web route, you would use:
-         * $middleware->web(append: [ ... ]);
-         */
+        // 2. Configure Guest Redirection
+        // This is the "Gatekeeper" instruction: 
+        // If a guest hits an 'auth' route, send them to /login
+        $middleware->redirectGuestsTo('/login'); 
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
