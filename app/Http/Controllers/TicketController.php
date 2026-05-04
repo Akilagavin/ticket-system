@@ -3,51 +3,49 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
-use App\Models\Category; // Added back from your HEAD changes
-use App\Mail\TicketCreated;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class TicketController 
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Supports dynamic pagination, searching, and sorting.
+     * Maintains application state (search/sort) across pagination.
      */
     public function index(Request $request)
     {
-        $ticketsQuery = Ticket::query();
-        
-        // 1. Capture Search and Sort inputs
-        $q = $request->query('q');
-        $sortColumn = $request->query('sort', 'created_at');
-        $sortDir = $request->query('sort_dir') == 'asc' ? 'asc' : 'desc';
-        
-        $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
+        // 1. Initialize the query
+        $query = Ticket::query();
 
-        // 2. Apply Search Filter
-        if ($q) {
-            $ticketsQuery->where(function($query) use ($q) {
-                $query->where('ref', 'LIKE', "%$q%")
-                      ->orWhere('customer_name', 'LIKE', "%$q%")
-                      ->orWhere('phone', 'LIKE', "%$q%")
-                      ->orWhere('description', 'LIKE', "%$q%");
+        // 2. Handle Search (Filter by Ref, Name, Phone, or Description)
+        if ($request->filled('q')) {
+            $searchTerm = $request->q;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('ref', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('description', 'like', "%{$searchTerm}%");
             });
-        } // Fixed: Added missing closing brace
-
-        // 3. Apply Sorting
-        if (in_array($sortColumn, $sortableColumns)) {
-            $ticketsQuery->orderBy($sortColumn, $sortDir);
         }
 
-        // 4. Finalize with Pagination
-        // .appends() ensures search/sort parameters stay in the URL when clicking page links
-        $perPage = $request->query('per_page', 10);
-        $tickets = $ticketsQuery->paginate($perPage)->appends($request->query());
+        // 3. Handle Sorting with Sanitize Check
+        // Added 'updated_at' to sortable columns per your project requirements
+        $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
+        $sortField = $request->query('sort', 'created_at');
+        $sortDirection = $request->query('sort_dir') === 'asc' ? 'asc' : 'desc';
 
-    return view('tickets.index', compact('tickets'));
-       
+        if (in_array($sortField, $sortableColumns)) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // 4. Pagination with State Maintenance
+        // withQueryString() appends current search/sort params to all pagination links
+        $perPage = $request->query('per_page', 10);
+        $tickets = $query->paginate($perPage)->withQueryString();
+
+        return view('tickets.index', compact('tickets'));
     }
 
     /**
@@ -55,8 +53,7 @@ class TicketController
      */
     public function create()
     {
-        $categories = Category::all(); // Keeps the category feature from HEAD
-        return view('tickets.create', compact('categories'));
+        return view('tickets.create');
     }
 
     /**
@@ -64,7 +61,8 @@ class TicketController
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // 1. Validation
+        $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
             'phone'         => 'nullable|string|max:20',
@@ -82,26 +80,24 @@ class TicketController
         $ticket->ref = sha1(time() . Str::random(10));
         $ticket->status = 0; // Default to 'Open'
 
-        // 3. Save and Notify (Queued Mail logic handled in the Model/Observer or via ShouldQueue)
+        // 3. Save and Redirect
         if ($ticket->save()) {
             return redirect(route('tickets.show', $ticket->ref))
-                ->with('success', 'Your ticket is created successfully. Please write down the reference number to check the ticket status later.');
+                ->with('success', 'Your ticket is created successfully. Reference: ' . $ticket->ref);
         }
 
-        return redirect()->back()->with('error', 'Oops! Could not create your ticket.');
+        return redirect()->back()
+            ->with('error', 'Oops! Could not create your ticket. Please try again later.');
     }
 
     /**
      * Display a specific ticket using the SHA1 reference.
      */
-    public function show(string $ref)
+    public function show($ref)
     {
-        // Use firstOrFail so it automatically throws a 404 if the SHA1 hash is invalid
+        // Use firstOrFail to automatically throw a 404 if the SHA1 hash is invalid
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
-
-        return view('tickets.show', [
-            'ticket' => $ticket,
-        ]);
+        return view('tickets.show', compact('ticket'));
     }
 
     /**
@@ -132,10 +128,8 @@ class TicketController
      */
     public function search(Request $request)
     {
-        $ref = $request->query('reference'); // Matches the 'name' attribute in your Welcome form
-
+        $ref = $request->query('reference'); 
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
-
         return redirect()->route('tickets.show', $ticket->ref);
     }
 }
