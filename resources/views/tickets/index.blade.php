@@ -75,8 +75,8 @@
     </div>
 
     <!-- Pagination -->
-    <div class="mt-4">
-        {{ $tickets->links() }}
-    </div>
+    <div class="d-flex justify-content-center mt-4">
+    {{ $tickets->links() }}
+</div>
 </div>
 @endsection
