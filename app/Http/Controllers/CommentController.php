@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Comment;
-use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -12,34 +11,33 @@ class CommentController extends Controller
 {
     /**
      * Store a newly created comment in storage.
-     * Handles both registered agents and guest customers.
+     * Supports both Guest Customers and Logged-in Agents.
      */
     public function store(Request $request): RedirectResponse
     {
-        // 1. Validate the incoming request
+        // 1. Validation
         $request->validate([
-            'content' => 'required|string',
+            'content'   => 'required|string|min:1',
             'ticket_id' => 'required|exists:tickets,id',
         ]);
 
-        // 2. Prepare data for storage
-        // We explicitly set user_id to null if the user is not logged in (Guest)
+        // 2. Data Preparation & Creation
+        // We ensure user_id is NULL for guests to satisfy the system requirements
         $comment = Comment::create([
-            'content' => $request->content,
+            'content'   => $request->content,
             'ticket_id' => $request->ticket_id,
-            'user_id' => Auth::check() ? Auth::id() : null,
+            'user_id'   => Auth::check() ? Auth::id() : null,
         ]);
 
-        // 3. THE FIX: Redirect back to the specific ticket view
-        // Using redirect()->back() ensures the user stays on the ticket page 
-        // and doesn't get a 'Method Not Allowed' error on refresh.
+        // 3. Redirection Fix
+        // Redirecting back prevents MethodNotAllowedHttpException on page refresh
         if ($comment) {
             return redirect()->back()
                 ->with('success', 'Your reply has been added successfully.');
         }
 
         return redirect()->back()
-            ->with('error', 'Unable to save your reply. Please try again.');
+            ->with('error', 'Something went wrong. Please try again.');
     }
 
     /**
@@ -47,7 +45,7 @@ class CommentController extends Controller
      */
     public function update(Request $request, Comment $comment)
     {
-        // Future implementation for editing replies
+        // Future Logic: Ensure only the comment author or an admin can update
     }
 
     /**
@@ -55,6 +53,6 @@ class CommentController extends Controller
      */
     public function destroy(Comment $comment)
     {
-        // Future implementation for deleting replies
+        // Future Logic: Check permissions before deleting
     }
 }
