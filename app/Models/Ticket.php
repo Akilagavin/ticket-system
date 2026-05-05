@@ -3,14 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Ticket extends Model
 {
+    use HasFactory;
+
+    /**
+     * The relationships that should always be eagerly loaded.
+     * Including 'comments' and the nested 'comments.user' to fetch agent details.
+     */
+    protected $with = ['comments', 'comments.user'];
+
     /**
      * The attributes that are mass assignable.
-     * Including status and ref as they are used in your system logic.
      */
     protected $fillable = [
         'category_id',
@@ -23,9 +31,9 @@ class Ticket extends Model
     ];
 
     /**
-     * Relationship: A ticket has many comments.
-     * This prevents the 'foreach() argument must be of type array|object, null given' error
-     * by returning an empty collection instead of null if no comments exist.
+     * Relationship: A Ticket Has Many Comments.
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function comments(): HasMany
     {
@@ -33,7 +41,9 @@ class Ticket extends Model
     }
 
     /**
-     * Relationship: A ticket belongs to a category.
+     * Relationship: A Ticket Belongs To a Category.
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function category(): BelongsTo
     {
