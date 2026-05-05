@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\CommentController;
 use App\Http\Middleware\CheckTicketStatus;
 
 // 1. PUBLIC ROUTES
@@ -20,10 +21,12 @@ Route::post('/tickets', [TicketController::class, 'store'])->name('tickets.store
 Route::get('/tickets/search', [TicketController::class, 'search'])->name('tickets.search');
 
 /**
- * Public Ticket View
- * Scope: Uses the SHA1 'ref' column to prevent ID guessing.
+ * Public Ticket View & Interaction
+ * Scope: Uses 'ref' for security.
+ * Comments: Allowed for guests so customers can reply to their own tickets.
  */
 Route::get('/tickets/{ticket:ref}', [TicketController::class, 'show'])->name('tickets.show');
+Route::post('/comments', [CommentController::class, 'store'])->name('comments.store');
 
 // 2. PROTECTED AGENT ROUTES
 Route::middleware(['auth'])->group(function () {
@@ -31,9 +34,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
 
+    // Comment Management (Agents editing/deleting their own replies)
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
     /**
      * 3. STATUS-PROTECTED ROUTES (Agent Only)
-     * Scope: Explicitly uses 'id' for internal management routes.
      * Middleware: Prevents editing of Resolved (2) or Cancelled (3) tickets.
      */
     Route::middleware([CheckTicketStatus::class])->group(function () {

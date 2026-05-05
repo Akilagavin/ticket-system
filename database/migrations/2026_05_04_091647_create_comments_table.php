@@ -14,8 +14,20 @@ return new class extends Migration
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
             $table->text('content'); // The message content
-            $table->foreignId('ticket_id')->constrained()->onDelete('cascade'); // Link to ticket
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');   // Link to user
+            
+            // Link to ticket - Cascade delete ensures comments are removed if a ticket is deleted
+            $table->foreignId('ticket_id')
+                  ->constrained()
+                  ->onUpdate('cascade')
+                  ->onDelete('cascade');
+
+            // Link to user - Must be nullable() because customers don't have accounts
+            $table->foreignId('user_id')
+                  ->nullable() 
+                  ->constrained()
+                  ->onUpdate('cascade')
+                  ->onDelete('cascade');
+
             $table->timestamps();
         });
     }
