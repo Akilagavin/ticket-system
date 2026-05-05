@@ -10,14 +10,11 @@ class TicketController
 {
     /**
      * Display a listing of tickets (Support Agent View).
-     * Maintains application state (search/sort) across pagination.
      */
     public function index(Request $request)
     {
-        // 1. Initialize the query
         $query = Ticket::query();
 
-        // 2. Handle Search (Filter by Ref, Name, Phone, or Description)
         if ($request->filled('q')) {
             $searchTerm = $request->q;
             $query->where(function($q) use ($searchTerm) {
@@ -28,8 +25,6 @@ class TicketController
             });
         }
 
-        // 3. Handle Sorting with Sanitize Check
-        // Added 'updated_at' to sortable columns per your project requirements
         $sortableColumns = ['customer_name', 'created_at', 'updated_at', 'status'];
         $sortField = $request->query('sort', 'created_at');
         $sortDirection = $request->query('sort_dir') === 'asc' ? 'asc' : 'desc';
@@ -40,8 +35,6 @@ class TicketController
             $query->orderBy('created_at', 'desc');
         }
 
-        // 4. Pagination with State Maintenance
-        // withQueryString() appends current search/sort params to all pagination links
         $perPage = $request->query('per_page', 10);
         $tickets = $query->paginate($perPage)->withQueryString();
 
@@ -49,7 +42,7 @@ class TicketController
     }
 
     /**
-     * Show the form for creating a new ticket (Customer view).
+     * Show the form for creating a new ticket.
      */
     public function create()
     {
@@ -57,11 +50,10 @@ class TicketController
     }
 
     /**
-     * Store a newly created ticket in the database.
+     * Store a newly created ticket.
      */
     public function store(Request $request)
     {
-        // 1. Validation
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
@@ -69,39 +61,37 @@ class TicketController
             'description'   => 'required|string',
         ]);
 
-        // 2. Manual Assignment
         $ticket = new Ticket();
         $ticket->customer_name = $request->input('customer_name');
         $ticket->email = $request->input('email');
         $ticket->phone = $request->input('phone');
         $ticket->description = $request->input('description');
         
-        // Internal Logic: SHA1 Hash for a secure, non-sequential reference
+        // Generate secure SHA1 reference
         $ticket->ref = sha1(time() . Str::random(10));
-        $ticket->status = 0; // Default to 'Open'
+        $ticket->status = 0; // Default: Open
 
-        // 3. Save and Redirect
         if ($ticket->save()) {
-            return redirect(route('tickets.show', $ticket->ref))
-                ->with('success', 'Your ticket is created successfully. Reference: ' . $ticket->ref);
+            return redirect()->route('tickets.show', $ticket->ref)
+                ->with('success', 'Your ticket is created successfully.');
         }
 
         return redirect()->back()
-            ->with('error', 'Oops! Could not create your ticket. Please try again later.');
+            ->with('error', 'Oops! Could not create your ticket.');
     }
 
     /**
-     * Display a specific ticket using the SHA1 reference.
+     * Display a specific ticket using the SHA1 reference string.
      */
     public function show($ref)
     {
-        // Use firstOrFail to automatically throw a 404 if the SHA1 hash is invalid
         $ticket = Ticket::where('ref', $ref)->firstOrFail();
         return view('tickets.show', compact('ticket'));
     }
 
     /**
-     * Show the form for editing (Admin/Agent view).
+     * Show the form for editing (Agent view).
+     * FIX: Variable name $ticket matches {ticket} in web.php to prevent 404.
      */
     public function edit(Ticket $ticket)
     {
@@ -110,11 +100,12 @@ class TicketController
 
     /**
      * Update the ticket status (Handled by Agent).
+     * FIX: Variable name $ticket matches {ticket} in web.php.
      */
     public function update(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
-            'status' => 'required|integer|in:0,1,2',
+            'status' => 'required|integer|in:0,1,2,3', // Included 3 for Cancelled
         ]);
 
         $ticket->update($validated);
@@ -124,7 +115,7 @@ class TicketController
     }
 
     /**
-     * Search for a ticket by its Reference ID (Used on the Welcome page).
+     * Search for a ticket by its Reference ID.
      */
     public function search(Request $request)
     {
