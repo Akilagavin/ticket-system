@@ -3,17 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Comment;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth; // Added for IDE clarity
+use Illuminate\Support\Facades\Auth;
 
-class CommentController extends Controller  // Ensure it extends Controller
+class CommentController extends Controller
 {
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * Store a newly created comment in storage.
+     * Handles both registered agents and guest customers.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -24,25 +23,23 @@ class CommentController extends Controller  // Ensure it extends Controller
         ]);
 
         // 2. Prepare data for storage
-        $data = $request->only(['content', 'ticket_id']);
-        
-        /**
-         * 3. Set user_id only for logged-in agents.
-         * Using Auth facade to resolve the "undefined method" warning.
-         */
-        $data['user_id'] = Auth::check() ? Auth::id() : null;
+        // We explicitly set user_id to null if the user is not logged in (Guest)
+        $comment = Comment::create([
+            'content' => $request->content,
+            'ticket_id' => $request->ticket_id,
+            'user_id' => Auth::check() ? Auth::id() : null,
+        ]);
 
-        // 4. Create the comment using mass assignment
-        $comment = Comment::create($data);
-
-        // 5. Handle the response based on success or failure
+        // 3. THE FIX: Redirect back to the specific ticket view
+        // Using redirect()->back() ensures the user stays on the ticket page 
+        // and doesn't get a 'Method Not Allowed' error on refresh.
         if ($comment) {
-            return redirect()->route('tickets.show', $comment->ticket_id)
-                ->with('success', 'Your reply added successfully.');
+            return redirect()->back()
+                ->with('success', 'Your reply has been added successfully.');
         }
 
         return redirect()->back()
-            ->with('error', 'Opps! we could not save your reply. Please try again.');
+            ->with('error', 'Unable to save your reply. Please try again.');
     }
 
     /**
@@ -50,7 +47,7 @@ class CommentController extends Controller  // Ensure it extends Controller
      */
     public function update(Request $request, Comment $comment)
     {
-        // Logic for future agent editing
+        // Future implementation for editing replies
     }
 
     /**
@@ -58,6 +55,6 @@ class CommentController extends Controller  // Ensure it extends Controller
      */
     public function destroy(Comment $comment)
     {
-        // Logic for future agent deletion
+        // Future implementation for deleting replies
     }
 }
