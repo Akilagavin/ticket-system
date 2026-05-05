@@ -66,8 +66,12 @@
                     <td>{{ $ticket->phone ?? 'N/A' }}</td>
                     <td>{{ $ticket->created_at->format('d/M/Y H:i:s') }}</td>
                     <td>
-                        {{-- Future Logic: $ticket->agent->name --}}
-                        <span class="text-muted">Unassigned</span>
+                        {{-- Logic to display the last agent who replied --}}
+                        @if($ticket->lastCommentedAgent)
+                            <span class="font-weight-bold text-dark">{{ $ticket->lastCommentedAgent->name }}</span>
+                        @else
+                            <span class="text-muted">None</span>
+                        @endif
                     </td>
                     <td>
                         @if($ticket->status == 0)

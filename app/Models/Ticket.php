@@ -13,7 +13,6 @@ class Ticket extends Model
 
     /**
      * The relationships that should always be eagerly loaded.
-     * Including 'comments' and the nested 'comments.user' to fetch agent details.
      */
     protected $with = ['comments', 'comments.user'];
 
@@ -29,6 +28,18 @@ class Ticket extends Model
         'ref',
         'status',
     ];
+
+    /**
+     * Accessor: Get the last agent who replied to this ticket.
+     * Use $this->comments (Collection) to avoid extra database queries.
+     */
+    public function getLastCommentedAgentAttribute()
+    {
+        return $this->comments->sortByDesc('created_at')
+            ->whereNotNull('user')
+            ->pluck('user')
+            ->first();
+    }
 
     /**
      * Relationship: A Ticket Has Many Comments.
