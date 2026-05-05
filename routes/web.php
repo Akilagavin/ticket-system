@@ -27,9 +27,9 @@ Route::get('/tickets/create', [TicketController::class, 'create'])->name('ticket
 Route::post('/tickets', [TicketController::class, 'store'])->name('tickets.store');
 Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
 
-// Comment Management
-// Registered outside auth so guests (customers) can reply to their own tickets.
-Route::resource('comments', CommentController::class)->only(['store', 'update', 'destroy']);
+// Comment Management - Public POST
+// This allows guests/customers to reply to their own tickets.
+Route::post('/comments', [CommentController::class, 'store'])->name('comments.store');
 
 // 2. PROTECTED AGENT ROUTES (Requires Login)
 Route::middleware(['auth'])->group(function () {
@@ -39,6 +39,11 @@ Route::middleware(['auth'])->group(function () {
     
     // Logout Logic
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    // Comment Management - Protected Actions
+    // Only logged-in agents can update or delete replies.
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
     // Editing Logic (Middleware for Status check: prevents editing closed tickets)
     Route::middleware([CheckTicketStatus::class])->group(function () {
