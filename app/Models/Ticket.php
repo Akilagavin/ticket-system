@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Category;
-use App\Models\Message;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Ticket extends Model
 {
-    // Allow mass assignment
+    /**
+     * The attributes that are mass assignable.
+     * Including status and ref as they are used in your system logic.
+     */
     protected $fillable = [
         'category_id',
         'customer_name',
@@ -20,23 +23,20 @@ class Ticket extends Model
     ];
 
     /**
-     * Get the route key for the model.
-     * This allows Laravel to find tickets by their 'ref' hash in the URL.
+     * Relationship: A ticket has many comments.
+     * This prevents the 'foreach() argument must be of type array|object, null given' error
+     * by returning an empty collection instead of null if no comments exist.
      */
-    public function getRouteKeyName()
+    public function comments(): HasMany
     {
-        return 'ref';
+        return $this->hasMany(Comment::class);
     }
 
-    // Relationship: A ticket belongs to a category
-    public function category()
+    /**
+     * Relationship: A ticket belongs to a category.
+     */
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
-    }
-
-    // Relationship: A ticket has many messages
-    public function messages()
-    {
-        return $this->hasMany(Message::class);
     }
 }
