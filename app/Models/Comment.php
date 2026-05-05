@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Comment extends Model
 {
+    use HasFactory;
+
     /**
      * The attributes that are mass assignable.
-     *
+     * 
      * @var array<int, string>
      */
     protected $fillable = [
@@ -19,7 +22,7 @@ class Comment extends Model
     ];
 
     /**
-     * Get the ticket that owns the comment.
+     * A Comment Belongs To a Ticket.
      * 
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
@@ -29,8 +32,8 @@ class Comment extends Model
     }
 
     /**
-     * Get the user (agent) who wrote the comment.
-     * Returns null if the comment was left by a customer.
+     * A Comment Belongs To a User (Support Agent).
+     * This will return null if the comment was made by a customer (guest).
      * 
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
