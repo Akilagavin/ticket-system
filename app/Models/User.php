@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -44,6 +45,27 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => 'integer',
         ];
+    }
+
+    /**
+     * Check if user is an agent
+     * 
+     * @return bool
+     */
+    public function isAgent(): bool
+    {
+        return $this->role === 2;
+    }
+
+    /**
+     * Check if user is a customer
+     * 
+     * @return bool
+     */
+    public function isCustomer(): bool
+    {
+        return $this->role === 1;
     }
 }

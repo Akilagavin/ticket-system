@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Comment;
+use App\Events\TicketUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -20,14 +21,19 @@ class CommentController extends Controller
             'ticket_id' => 'required|exists:tickets,id',
         ]);
 
-        Comment::create([
+        // Create comment with mass assignment
+        $comment = Comment::create([
             'content'   => $request->content,
             'ticket_id' => $request->ticket_id,
-            // Check if user is logged in (Agent), otherwise set to null (Customer)
             'user_id'   => Auth::check() ? Auth::id() : null,
         ]);
 
-        // Using back() with a success message prevents form resubmission on refresh
+        // Get the associated ticket
+        $ticket = $comment->ticket;
+
+        // Dispatch the TicketUpdated event to trigger the email
+        TicketUpdated::dispatch($ticket);
+
         return back()->with('success', 'Your reply has been added successfully.');
     }
 
@@ -42,8 +48,8 @@ class CommentController extends Controller
             'content' => 'required|string'
         ]);
 
-        // Authorization: Ensure only the person who wrote it (or an admin) can edit
-        if (Auth::id() !== $comment->user_id && !Auth::user()?->is_admin) {
+        // Authorization: Ensure only the person who wrote it (or an agent) can edit
+        if (Auth::id() !== $comment->user_id && !(Auth::check() && Auth::user()->role === 2)) {
             return back()->with('error', 'You are not authorized to edit this comment.');
         }
         
@@ -59,9 +65,9 @@ class CommentController extends Controller
      */
     public function destroy(Comment $comment): RedirectResponse
     {
-        // Authorization: Prevent unauthorized deletion
-        if (Auth::id() !== $comment->user_id) {
-            return back()->with('error', 'You cannot delete this comment.');
+        // Authorization: Ensure only the person who wrote it (or an agent) can delete
+        if (Auth::id() !== $comment->user_id && !(Auth::check() && Auth::user()->role === 2)) {
+            return back()->with('error', 'You are not authorized to delete this comment.');
         }
 
         $comment->delete();

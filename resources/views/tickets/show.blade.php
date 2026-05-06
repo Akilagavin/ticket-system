@@ -51,9 +51,45 @@
                 </div>
             </div>
 
-            {{-- 2. Add a Reply Form --}}
+            {{-- 2. Comments/Replies Section --}}
+            @if($ticket->comments && count($ticket->comments) > 0)
             <div class="card shadow-sm border-0 mb-5">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Comments & Replies ({{ count($ticket->comments) }})</h5>
+                </div>
+                <div class="card-body">
+                    @foreach($ticket->comments as $comment)
+                    <div class="mb-4 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                @if($comment->user_id)
+                                    {{-- Agent Reply --}}
+                                    <h6 class="mb-1">
+                                        <strong>{{ $comment->user->name }}</strong>
+                                        <span class="badge badge-danger ml-2">Support Agent</span>
+                                    </h6>
+                                @else
+                                    {{-- Customer Reply --}}
+                                    <h6 class="mb-1">
+                                        <strong>{{ $ticket->customer_name }}</strong>
+                                        <span class="badge badge-secondary ml-2">Customer</span>
+                                    </h6>
+                                @endif
+                                <small class="text-muted">{{ $comment->created_at->format('M d, Y \a\t h:i A') }}</small>
+                            </div>
+                        </div>
+                        <div class="mt-2 p-3 bg-light rounded">
+                            <p class="mb-0">{{ $comment->content }}</p>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            {{-- 3. Add a Reply Form --}}
+            <div class="card shadow-sm border-0 mb-5">
+                <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Add a Reply</h5>
                 </div>
                 <div class="card-body">
@@ -87,7 +123,7 @@
                 </div>
             </div>
 
-            {{-- Footer Actions --}}
+            {{-- 4. Footer Actions --}}
             <div class="text-center mb-5">
                 <a href="{{ url('/') }}" class="btn btn-outline-secondary">Return to Home</a>
                 <button onclick="window.print()" class="btn btn-primary ml-2">Print Ticket</button>

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\Category; 
+use App\Events\TicketCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -46,7 +48,8 @@ class TicketController
      */
     public function create()
     {
-        return view('tickets.create');
+        $categories = Category::all();
+        return view('tickets.create', compact('categories'));
     }
 
     /**
@@ -54,24 +57,31 @@ class TicketController
      */
     public function store(Request $request)
     {
+        // Customizing the attributes array (3rd parameter) fixes the error in image_addb1b.png
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'email'         => 'required|email|max:255',
             'phone'         => 'nullable|string|max:20',
+            'category_id'   => 'required|exists:categories,id',
             'description'   => 'required|string',
+        ], [], [
+            'category_id' => 'category', // This changes 'category id' to 'category' in messages
         ]);
 
         $ticket = new Ticket();
         $ticket->customer_name = $request->input('customer_name');
         $ticket->email = $request->input('email');
         $ticket->phone = $request->input('phone');
+        $ticket->category_id = $request->input('category_id');
         $ticket->description = $request->input('description');
         
-        // Generate secure SHA1 reference
         $ticket->ref = sha1(time() . Str::random(10));
-        $ticket->status = 0; // Default: Open
+        $ticket->status = 0; 
 
         if ($ticket->save()) {
+            // Ensure notification events are fired
+            TicketCreated::dispatch($ticket);
+
             return redirect()->route('tickets.show', $ticket->ref)
                 ->with('success', 'Your ticket is created successfully.');
         }
@@ -90,22 +100,21 @@ class TicketController
     }
 
     /**
-     * Show the form for editing (Agent view).
-     * FIX: Variable name $ticket matches {ticket} in web.php to prevent 404.
+     * Show the form for editing.
      */
     public function edit(Ticket $ticket)
     {
-        return view('tickets.edit', compact('ticket'));
+        $categories = Category::all();
+        return view('tickets.edit', compact('ticket', 'categories'));
     }
 
     /**
-     * Update the ticket status (Handled by Agent).
-     * FIX: Variable name $ticket matches {ticket} in web.php.
+     * Update the ticket status.
      */
     public function update(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
-            'status' => 'required|integer|in:0,1,2,3', // Included 3 for Cancelled
+            'status' => 'required|integer|in:0,1,2,3',
         ]);
 
         $ticket->update($validated);
