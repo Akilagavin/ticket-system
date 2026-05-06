@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Mail;
+
 use App\Models\Ticket;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,7 +16,6 @@ class TicketCreated extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public $ticket;
-
 
     /**
      * Create a new message instance.
