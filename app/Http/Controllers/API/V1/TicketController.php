@@ -8,14 +8,28 @@ use App\Events\TicketCreated;
 use App\Events\TicketUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException; // Imported as dependency
 
 class TicketController extends Controller
 {
     /**
+     * Shared validation rules for store and update methods. 
+     * This ensures consistency across the API.
+     */
+    private function ticketRules(): array
+    {
+        return [
+            'customer_name' => 'required|string|max:200',
+            'email'         => 'required|email',
+            'description'   => 'required|string',
+            'phone'         => 'nullable|string|max:20',
+            'category_id'   => 'nullable|exists:categories,id',
+            'status'        => 'nullable|integer|in:0,1,2,3',
+        ];
+    }
+
+    /**
      * Get all tickets with pagination.
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -40,28 +54,22 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Error retrieving tickets: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get a single ticket by ID with its comments.
-     * 
-     * @param int $id
-     * @return JsonResponse
+     * Get a single ticket by ID.
      */
     public function show(int $id): JsonResponse
     {
         try {
-            $ticket = Ticket::with(['comments', 'comments.user', 'category'])
-                ->find($id);
+            $ticket = Ticket::with(['comments', 'comments.user', 'category'])->find($id);
 
             if (!$ticket) {
                 return response()->json([
                     'status' => 'error',
-                    'data' => null,
                     'message' => 'Ticket not found.'
                 ], 404);
             }
@@ -74,63 +82,44 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Error retrieving ticket: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Store a newly created ticket via API.
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * Store a newly created ticket.
      */
     public function store(Request $request): JsonResponse
     {
         try {
-            // 1. Validation
-            $validated = $request->validate([
-                'customer_name' => 'required|string|max:200',
-                'email'         => 'required|email',
-                'description'   => 'required|string',
-                'phone'         => 'nullable|string|max:20',
-                'category_id'   => 'nullable|exists:categories,id',
-            ]);
+            // 1. Unified Validation
+            $validated = $request->validate($this->ticketRules());
 
             // 2. Prepare Data
-            $data = [
-                'customer_name' => $validated['customer_name'],
-                'email'         => $validated['email'],
-                'phone'         => $validated['phone'] ?? null,
-                'description'   => $validated['description'],
-                'category_id'   => $validated['category_id'] ?? null,
-                'ref'           => sha1(time() . $validated['email']),
-                'status'        => 0, // 0 = New/Pending
-            ];
+            $ref = sha1(time() . $validated['email']);
+            $ticket = Ticket::create(array_merge($validated, [
+                'ref'    => $ref,
+                'status' => 0,
+            ]));
 
-            // 3. Create Ticket
-            $ticket = Ticket::create($data);
-
-            // 4. Trigger Event (sends email)
+            // 3. Trigger Event
             TicketCreated::dispatch($ticket);
 
             return response()->json([
                 'status'  => 'success',
                 'data'    => $ticket,
-                'message' => 'Ticket created successfully. Reference: ' . $data['ref']
+                'message' => 'Ticket created successfully. Reference: ' . $ref
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) { 
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Validation failed.',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'data'    => null,
                 'message' => 'Error creating ticket: ' . $e->getMessage()
             ], 500);
         }
@@ -138,10 +127,6 @@ class TicketController extends Controller
 
     /**
      * Update an existing ticket.
-     * 
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -151,28 +136,16 @@ class TicketController extends Controller
             if (!$ticket) {
                 return response()->json([
                     'status' => 'error',
-                    'data' => null,
                     'message' => 'Ticket not found.'
                 ], 404);
             }
 
-            // Validation
-            $validated = $request->validate([
-                'status'      => 'nullable|integer|in:0,1,2,3',
-                'category_id' => 'nullable|exists:categories,id',
-            ]);
+            // 1. Unified Validation 
+            $validated = $request->validate($this->ticketRules());
 
-            // Update only if values are provided
-            if (isset($validated['status'])) {
-                $ticket->status = $validated['status'];
-            }
-            if (isset($validated['category_id'])) {
-                $ticket->category_id = $validated['category_id'];
-            }
+            $ticket->update($validated);
 
-            $ticket->save();
-
-            // Dispatch update event
+            // 2. Dispatch update event
             TicketUpdated::dispatch($ticket);
 
             return response()->json([
@@ -180,17 +153,15 @@ class TicketController extends Controller
                 'data' => $ticket,
                 'message' => 'Ticket updated successfully.'
             ], 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) { 
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Validation failed.',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Error updating ticket: ' . $e->getMessage()
             ], 500);
         }
@@ -198,9 +169,6 @@ class TicketController extends Controller
 
     /**
      * Delete a ticket.
-     * 
-     * @param int $id
-     * @return JsonResponse
      */
     public function destroy(int $id): JsonResponse
     {
@@ -210,7 +178,6 @@ class TicketController extends Controller
             if (!$ticket) {
                 return response()->json([
                     'status' => 'error',
-                    'data' => null,
                     'message' => 'Ticket not found.'
                 ], 404);
             }
@@ -219,13 +186,11 @@ class TicketController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'data' => null,
                 'message' => 'Ticket deleted successfully.'
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'data' => null,
                 'message' => 'Error deleting ticket: ' . $e->getMessage()
             ], 500);
         }
